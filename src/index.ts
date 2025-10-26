@@ -546,4 +546,59 @@ const main = async () => {
     exit(0);
 };
 
-export { main };
+const deal = async(filename: string, outputFilename: string)=>{
+    try {
+        // read, filter, process input files
+        const inputFile = await (async () => {
+            // read input
+            const file = await readFile(resolve(filename), []);
+
+            // filter out non-gs data
+            if (file.elements.length !== 1 || file.elements[0].name !== 'vertex') {
+                throw new Error(`Unsupported data in file '${filename}'`);
+            }
+
+            const element = file.elements[0];
+
+            const { dataTable } = element;
+            if (dataTable.numRows === 0 || !isGSDataTable(dataTable)) {
+                throw new Error(`Unsupported data in file '${filename}'`);
+            }
+
+            element.dataTable = processDataTable(dataTable, []);
+
+            return file;
+        })();
+
+        // combine inputs into a single output dataTable
+        const dataTable = processDataTable(
+            combine([inputFile].map(file => file.elements[0].dataTable)),
+            []
+        );
+
+        if (dataTable.numRows === 0) {
+            throw new Error('No splats to write');
+        }
+
+        console.log(`Loaded ${dataTable.numRows} gaussians`);
+
+        const options: Options = {
+            overwrite: true,
+            help: false,
+            version: false,
+            cpu: false,
+            iterations: 10
+        };
+
+        // write file
+        await writeFile(resolve(outputFilename), dataTable, options);
+
+        return true;
+    } catch (err) {
+        // handle errors
+        console.error(err);
+        return false;
+    }
+}
+
+export { main, deal };
