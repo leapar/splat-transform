@@ -2,8 +2,6 @@ import { stdout } from 'node:process';
 
 import { Column, DataTable } from '../data-table';
 import { KdTree } from './kd-tree';
-import { GpuClustering } from '../gpu/gpu-clustering';
-import { GpuDevice } from '../gpu/gpu-device';
 
 const initializeCentroids = (dataTable: DataTable, centroids: DataTable, row: any) => {
     const chosenRows = new Set();
@@ -134,7 +132,7 @@ const groupLabels = (labels: Uint32Array, k: number) => {
     return clusters;
 };
 
-const kmeans = async (points: DataTable, k: number, iterations: number, device?: GpuDevice) => {
+const kmeans = async (points: DataTable, k: number, iterations: number) => {
     // too few data points
     if (points.numRows < k) {
         return {
@@ -153,7 +151,6 @@ const kmeans = async (points: DataTable, k: number, iterations: number, device?:
         initializeCentroids(points, centroids, row);
     }
 
-    const gpuClustering = device && new GpuClustering(device, points.numColumns, k);
     const labels = new Uint32Array(points.numRows);
 
     let converged = false;
@@ -162,11 +159,8 @@ const kmeans = async (points: DataTable, k: number, iterations: number, device?:
     console.log(`Running k-means clustering: dims=${points.numColumns} points=${points.numRows} clusters=${k} iterations=${iterations}...`);
 
     while (!converged) {
-        if (gpuClustering) {
-            await gpuClustering.execute(points, centroids, labels);
-        } else {
-            clusterKdTreeCpu(points, centroids, labels);
-        }
+        
+        clusterKdTreeCpu(points, centroids, labels);
 
         // calculate the new centroid positions
         const groups = groupLabels(labels, k);
@@ -191,9 +185,7 @@ const kmeans = async (points: DataTable, k: number, iterations: number, device?:
         stdout.write('#');
     }
 
-    if (gpuClustering) {
-        gpuClustering.destroy();
-    }
+
 
     console.log(' done 🎉');
 
