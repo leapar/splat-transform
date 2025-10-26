@@ -1,4 +1,5 @@
 import createModule from '../../lib/webp.mjs';
+import * as path from "path";
 
 class WebPCodec {
     Module: any;
@@ -6,11 +7,12 @@ class WebPCodec {
     static async create() {
         const instance = new WebPCodec();
         instance.Module = await createModule({
-            locateFile: (path: string) => {
-                if (path.endsWith('.wasm')) {
-                    return new URL(`../lib/${path}`, import.meta.url).toString();
+            locateFile: (fileName: string) => {
+                if (fileName.endsWith('.wasm')) {
+                    let wasmPath = "file://" + path.resolve(__dirname, `../../resources/${fileName}`);
+                    return new URL(wasmPath, import.meta.url).toString();
                 }
-                return path;
+                return fileName;
             }
         });
         return instance;

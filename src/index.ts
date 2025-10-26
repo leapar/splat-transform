@@ -200,7 +200,7 @@ const isGSDataTable = (dataTable: DataTable) => {
     return true;
 };
 
-const deal = async(filename: string, outputFilename: string)=>{
+const convertGsplat = async(filename: string, outputFilename: string)=>{
     try {
         // read, filter, process input files
         const inputFile = await (async () => {
@@ -255,4 +255,4 @@ const deal = async(filename: string, outputFilename: string)=>{
     }
 }
 
-export { deal };
+export { convertGsplat };
