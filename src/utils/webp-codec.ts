@@ -10,7 +10,7 @@ class WebPCodec {
             locateFile: (fileName: string) => {
                 if (fileName.endsWith('.wasm')) {
                     let wasmPath = "file://" + path.resolve(__dirname, `../../resources/${fileName}`);
-                    return new URL(wasmPath, import.meta.url).toString();
+                    return wasmPath;
                 }
                 return fileName;
             }

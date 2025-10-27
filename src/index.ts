@@ -247,11 +247,16 @@ const convertGsplat = async(filename: string, outputFilename: string)=>{
         // write file
         await writeFile(resolve(outputFilename), dataTable, options);
 
-        return true;
+        return {
+            isOk:true
+        };
     } catch (err) {
         // handle errors
         console.error(err);
-        return false;
+        return {
+            isOk: false,
+            error: err
+        };
     }
 }
 
