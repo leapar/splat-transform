@@ -1,5 +1,5 @@
 import createModule from '../../lib/webp.electron.mjs';
-import { resolve } from "path";
+import { resolve, join } from "path";
 
 class WebPCodec {
     Module: any;
@@ -10,7 +10,12 @@ class WebPCodec {
             locateFile: (path: string) => {
                 if (path.endsWith('.wasm')) {
                     //return new URL(`../lib/${path}`, import.meta.url).toString();
-                    let wasmPath = "file://" + resolve(__dirname, `../../resources/${path}`);
+                    let wasmPath = "";
+                    if(process.env.NODE_ENV === "development") {
+                        wasmPath = "file://" + resolve(__dirname, `../../resources/${path}`);
+                    } else {
+                        wasmPath = "file://" + resolve(join((process as any).resourcesPath, "app.asar.unpacked", "resources", path));
+                    }
                     return wasmPath;
                 }
                 return path;
