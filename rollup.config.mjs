@@ -23,7 +23,7 @@ const umdapplication = {
     input: 'src/index-electron.ts',
     output: {
         dir: 'dist',
-        format: 'umd',
+        format: 'esm',//umd
         sourcemap: true,
         name: 'SPLAT',
         entryFileNames: 'gsplat-electron.js'

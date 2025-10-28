@@ -61,9 +61,7 @@ const initializeGlobals = () => {
     };
 };
 
-if((window as any).IS_ELECTRON !== true) {
-    initializeGlobals();
-}
+//initializeGlobals();
 
 class Application extends AppBase {
     constructor(canvas: HTMLCanvasElement, options: any = {}) {

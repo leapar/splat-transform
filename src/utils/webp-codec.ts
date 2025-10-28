@@ -9,12 +9,9 @@ class WebPCodec {
         instance.Module = await createModule({
             locateFile: (path: string) => {
                 if (path.endsWith('.wasm')) {
-                    if((window as any).IS_ELECTRON !== true)  {
-                        return new URL(`../lib/${path}`, import.meta.url).toString();
-                    } else {
-                        let wasmPath = "file://" + resolve(__dirname, `../../../resources/${path}`);
-                        return wasmPath;
-                    }
+                    //return new URL(`../lib/${path}`, import.meta.url).toString();
+                    let wasmPath = "file://" + resolve(__dirname, `../../resources/${path}`);
+                    return wasmPath;
                 }
                 return path;
             }
