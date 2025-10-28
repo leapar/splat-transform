@@ -123,7 +123,7 @@ const writeSog = async (fileHandle: FileHandle, dataTable: DataTable, outputFile
 
     const write = async (filename: string, data: Uint8Array, w = width, h = height) => {
         const pathname = resolve(dirname(outputFilename), filename);
-        console.log(`writing '${pathname}'...`);
+        (window as any).api.message.log(`writing '${pathname}'...`);
 
         // construct the encoder on first use
         if (!webPCodec) {

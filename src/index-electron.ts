@@ -30,7 +30,7 @@ const readFile = async (filename: string, params: Param[]) => {
     const lowerFilename = filename.toLowerCase();
     let fileData;
 
-    console.log(`reading '${filename}'...`);
+    (window as any).api.message.log(`reading '${filename}'...`);
 
     if (lowerFilename.endsWith('.mjs')) {
         fileData = await readMjs(filename, params);
@@ -89,7 +89,7 @@ const writeFile = async (filename: string, dataTable: DataTable, options: Option
     // get the output format, throws on failure
     const outputFormat = getOutputFormat(filename);
 
-    console.log(`writing '${filename}'...`);
+    (window as any).api.message.log(`writing '${filename}'...`);
 
     // write to a temporary file and rename on success
     const tmpFilename = `.${basename(filename)}.${process.pid}.${Date.now()}.${randomBytes(6).toString('hex')}.tmp`;
@@ -234,7 +234,7 @@ const convertGsplat = async(filename: string, outputFilename: string)=>{
             throw new Error('No splats to write');
         }
 
-        console.log(`Loaded ${dataTable.numRows} gaussians`);
+        (window as any).api.message.log(`Loaded ${dataTable.numRows} gaussians`);
 
         const options: Options = {
             overwrite: true,

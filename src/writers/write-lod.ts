@@ -262,7 +262,7 @@ const writeLod = async (fileHandle: FileHandle, dataTable: DataTable, outputFile
             // write file unit to sog
             const outputFile = await open(pathname, 'w');
 
-            console.log(`writing ${pathname}...`);
+            (window as any).api.message.log(`writing ${pathname}...`);
 
             await writeSog(outputFile, unitDataTable, pathname, shIterations, shMethod, indices);
 

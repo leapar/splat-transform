@@ -127,7 +127,7 @@ const createDevice = async () => {
 
     // print gpu info
     const info = (graphicsDevice as any).gpuAdapter.info || {};
-    console.log(`Created gpu device="${info.device || '-'}" arch="${info.architecture || '-'}" descr="${info.description || '-'}"`);
+    (window as any).api.message.log(`Created gpu device="${info.device || '-'}" arch="${info.architecture || '-'}" descr="${info.description || '-'}"`);
 
     // create the application
     const app = new Application(canvas, { graphicsDevice });

@@ -159,7 +159,7 @@ const kmeans = async (points: DataTable, k: number, iterations: number, device?:
     let converged = false;
     let steps = 0;
 
-    console.log(`Running k-means clustering: dims=${points.numColumns} points=${points.numRows} clusters=${k} iterations=${iterations}...`);
+    (window as any).api.message.log(`Running k-means clustering: dims=${points.numColumns} points=${points.numRows} clusters=${k} iterations=${iterations}...`);
 
     while (!converged) {
         if (gpuClustering) {
@@ -195,7 +195,7 @@ const kmeans = async (points: DataTable, k: number, iterations: number, device?:
         gpuClustering.destroy();
     }
 
-    console.log(' done 🎉');
+    (window as any).api.message.log(' done 🎉');
 
     return { centroids, labels };
 };
