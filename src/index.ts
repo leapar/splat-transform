@@ -1,6 +1,12 @@
 import { randomBytes } from 'crypto';
 import { lstat, mkdir, open, rename } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
+import { exit, hrtime } from 'node:process';
+import { parseArgs } from 'node:util';
+
+import { Vec3 } from 'playcanvas';
+
+import { version } from '../package.json';
 import { Column, DataTable, TypedArray } from './data-table';
 import { ProcessAction, processDataTable } from './process';
 import { isCompressedPly, decompressPly } from './readers/decompress-ply';
@@ -11,6 +17,8 @@ import { readSog } from './readers/read-sog';
 import { readSplat } from './readers/read-splat';
 import { readSpz } from './readers/read-spz';
 import { writeCompressedPly } from './writers/write-compressed-ply';
+import { writeCsv } from './writers/write-csv';
+import { writeHtml } from './writers/write-html';
 import { writeLod } from './writers/write-lod';
 import { writePly } from './writers/write-ply';
 import { writeSog } from './writers/write-sog';
@@ -24,7 +32,17 @@ type Options = {
     viewerSettingsPath?: string
 };
 
-
+const fileExists = async (filename: string) => {
+    try {
+        await lstat(filename);
+        return true;
+    } catch (e: any) {
+        if (e?.code === 'ENOENT') {
+            return false;
+        }
+        throw e; // real error (permissions, etc)
+    }
+};
 
 const readFile = async (filename: string, params: Param[]) => {
     const lowerFilename = filename.toLowerCase();
@@ -101,6 +119,9 @@ const writeFile = async (filename: string, dataTable: DataTable, options: Option
     try {
         // write the file data
         switch (outputFormat) {
+            case 'csv':
+                await writeCsv(outputFile, dataTable);
+                break;
             case 'sog':
                 await writeSog(outputFile, dataTable, filename, options.iterations, options.cpu ? 'cpu' : 'gpu');
                 break;
@@ -118,6 +139,9 @@ const writeFile = async (filename: string, dataTable: DataTable, options: Option
                         dataTable: dataTable
                     }]
                 });
+                break;
+            case 'html':
+                await writeHtml(outputFile, dataTable, options.iterations, options.cpu ? 'cpu' : 'gpu', options.viewerSettingsPath);
                 break;
         }
 
@@ -200,34 +224,329 @@ const isGSDataTable = (dataTable: DataTable) => {
     return true;
 };
 
-const convertGsplat = async(filename: string, outputFilename: string)=>{
+type File = {
+    filename: string;
+    processActions: ProcessAction[];
+};
+
+const parseArguments = () => {
+    const { values: v, tokens } = parseArgs({
+        tokens: true,
+        strict: true,
+        allowPositionals: true,
+        allowNegative: true,
+        options: {
+            // global options
+            overwrite: { type: 'boolean', short: 'w' },
+            help: { type: 'boolean', short: 'h' },
+            version: { type: 'boolean', short: 'v' },
+            cpu: { type: 'boolean', short: 'c' },
+            iterations: { type: 'string', short: 'i' },
+            'viewer-settings': { type: 'string', short: 'E' },
+
+            // per-file options
+            translate: { type: 'string', short: 't', multiple: true },
+            rotate: { type: 'string', short: 'r', multiple: true },
+            scale: { type: 'string', short: 's', multiple: true },
+            'filter-nan': { type: 'boolean', short: 'N', multiple: true },
+            'filter-value': { type: 'string', short: 'V', multiple: true },
+            'filter-harmonics': { type: 'string', short: 'H', multiple: true },
+            'filter-box': { type: 'string', short: 'B', multiple: true },
+            'filter-sphere': { type: 'string', short: 'S', multiple: true },
+            params: { type: 'string', short: 'p', multiple: true },
+            lod: { type: 'string', short: 'l', multiple: true }
+        }
+    });
+
+    const parseNumber = (value: string): number => {
+        const result = Number(value);
+        if (isNaN(result)) {
+            throw new Error(`Invalid number value: ${value}`);
+        }
+        return result;
+    };
+
+    const parseInteger = (value: string): number => {
+        const result = parseInt(value, 10);
+        if (isNaN(result)) {
+            throw new Error(`Invalid integer value: ${value}`);
+        }
+        return result;
+    };
+
+    const parseVec3 = (value: string): Vec3 => {
+        const parts = value.split(',').map(parseNumber);
+        if (parts.length !== 3 || parts.some(isNaN)) {
+            throw new Error(`Invalid Vec3 value: ${value}`);
+        }
+        return new Vec3(parts[0], parts[1], parts[2]);
+    };
+
+    const parseComparator = (value: string): 'lt' | 'lte' | 'gt' | 'gte' | 'eq' | 'neq' => {
+        switch (value) {
+            case 'lt': return 'lt';
+            case 'lte': return 'lte';
+            case 'gt': return 'gt';
+            case 'gte': return 'gte';
+            case 'eq': return 'eq';
+            case 'neq': return 'neq';
+            default:
+                throw new Error(`Invalid comparator value: ${value}`);
+        }
+    };
+
+    const files: File[] = [];
+
+    const options: Options = {
+        overwrite: v.overwrite ?? false,
+        help: v.help ?? false,
+        version: v.version ?? false,
+        cpu: v.cpu ?? false,
+        iterations: parseInteger(v.iterations ?? '10'),
+        viewerSettingsPath: (v as any)['viewer-settings']
+    };
+
+    for (const t of tokens) {
+        if (t.kind === 'positional') {
+            files.push({
+                filename: t.value,
+                processActions: []
+            });
+        } else if (t.kind === 'option' && files.length > 0) {
+            const current = files[files.length - 1];
+            switch (t.name) {
+                case 'translate':
+                    current.processActions.push({
+                        kind: 'translate',
+                        value: parseVec3(t.value)
+                    });
+                    break;
+                case 'rotate':
+                    current.processActions.push({
+                        kind: 'rotate',
+                        value: parseVec3(t.value)
+                    });
+                    break;
+                case 'scale':
+                    current.processActions.push({
+                        kind: 'scale',
+                        value: parseNumber(t.value)
+                    });
+                    break;
+                case 'filter-nan':
+                    current.processActions.push({
+                        kind: 'filterNaN'
+                    });
+                    break;
+                case 'filter-value': {
+                    const parts = t.value.split(',').map((p: string) => p.trim());
+                    if (parts.length !== 3) {
+                        throw new Error(`Invalid filter-value value: ${t.value}`);
+                    }
+                    current.processActions.push({
+                        kind: 'filterByValue',
+                        columnName: parts[0],
+                        comparator: parseComparator(parts[1]),
+                        value: parseNumber(parts[2])
+                    });
+                    break;
+                }
+                case 'filter-harmonics': {
+                    const shBands = parseInteger(t.value);
+                    if (![0, 1, 2, 3].includes(shBands)) {
+                        throw new Error(`Invalid filter-harmonics value: ${t.value}. Must be 0, 1, 2, or 3.`);
+                    }
+                    current.processActions.push({
+                        kind: 'filterBands',
+                        value: shBands as 0 | 1 | 2 | 3
+                    });
+
+                    break;
+                }
+                case 'filter-box': {
+                    const parts = t.value.split(',').map((p: string) => p.trim());
+                    if (parts.length !== 6) {
+                        throw new Error(`Invalid filter-box value: ${t.value}`);
+                    }
+
+                    const defaults = [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity];
+                    const values: number[] = [];
+                    for (let i = 0; i < 6; ++i) {
+                        if (parts[i] === '' || parts[i] === '-') {
+                            values[i] = defaults[i];
+                        } else {
+                            values[i] = parseNumber(parts[i]);
+                        }
+                    }
+
+                    current.processActions.push({
+                        kind: 'filterBox',
+                        min: new Vec3(values[0], values[1], values[2]),
+                        max: new Vec3(values[3], values[4], values[5])
+                    });
+                    break;
+                }
+                case 'filter-sphere': {
+                    const parts = t.value.split(',').map((p: string) => p.trim());
+                    if (parts.length !== 4) {
+                        throw new Error(`Invalid filter-sphere value: ${t.value}`);
+                    }
+                    const values = parts.map(parseNumber);
+                    current.processActions.push({
+                        kind: 'filterSphere',
+                        center: new Vec3(values[0], values[1], values[2]),
+                        radius: values[3]
+                    });
+                    break;
+                }
+                case 'params': {
+                    const params = t.value.split(',').map((p: string) => p.trim());
+                    for (const param of params) {
+                        const parts = param.split('=').map((p: string) => p.trim());
+                        current.processActions.push({
+                            kind: 'param',
+                            name: parts[0],
+                            value: parts[1] ?? ''
+                        });
+                    }
+                    break;
+                }
+                case 'lod': {
+                    const lod = parseInteger(t.value);
+                    if (lod < 0) {
+                        throw new Error(`Invalid lod value: ${t.value}. Must be a non-negative integer.`);
+                    }
+                    current.processActions.push({
+                        kind: 'lod',
+                        value: lod
+                    });
+                    break;
+                }
+            }
+        }
+    }
+
+    return { files, options };
+};
+
+const usage = `
+Transform & filter Gaussian splats
+===================================
+
+USAGE
+  splat-transform [GLOBAL] input [ACTIONS]  ...  output [ACTIONS]
+
+  • Input files become the working set; ACTIONS are applied in order.
+  • The last file is the output; actions after it modify the final result.
+
+SUPPORTED INPUTS
+    .ply   .compressed.ply   .sog   meta.json   .ksplat   .splat   .spz   .mjs
+
+SUPPORTED OUTPUTS
+    .ply   .compressed.ply   .sog   meta.json   .csv   .html
+
+ACTIONS (can be repeated, in any order)
+    -t, --translate        <x,y,z>          Translate splats by (x, y, z)
+    -r, --rotate           <x,y,z>          Rotate splats by Euler angles (x, y, z), in degrees
+    -s, --scale            <factor>         Uniformly scale splats by factor
+    -H, --filter-harmonics <0|1|2|3>        Remove spherical harmonic bands > n
+    -N, --filter-nan                        Remove Gaussians with NaN or Inf values
+    -B, --filter-box       <x,y,z,X,Y,Z>    Remove Gaussians outside box (min, max corners)
+    -S, --filter-sphere    <x,y,z,radius>   Remove Gaussians outside sphere (center, radius)
+    -V, --filter-value     <name,cmp,value> Keep splats where <name> <cmp> <value>
+                                              cmp ∈ {lt,lte,gt,gte,eq,neq}
+    -p, --params           <key=val,...>    Pass parameters to .mjs generator script
+    -l, --lod              <n>              Specify the level of detail, n >= 0.
+
+GLOBAL OPTIONS
+    -h, --help                              Show this help and exit
+    -v, --version                           Show version and exit
+    -w, --overwrite                         Overwrite output file if it exists
+    -c, --cpu                               Use CPU for SOG spherical harmonic compression
+    -i, --iterations       <n>              Iterations for SOG SH compression (more=better). Default: 10
+    -E, --viewer-settings  <settings.json>  HTML viewer settings JSON file
+
+EXAMPLES
+    # Scale then translate
+    splat-transform bunny.ply -s 0.5 -t 0,0,10 bunny-scaled.ply
+
+    # Merge two files with transforms and compress to SOG format
+    splat-transform -w cloudA.ply -r 0,90,0 cloudB.ply -s 2 merged.sog
+
+    # Generate HTML viewer with custom settings
+    splat-transform -E settings.json bunny.ply bunny-viewer.html
+
+    # Generate synthetic splats using a generator script
+    splat-transform gen-grid.mjs -p width=500,height=500,scale=0.1 grid.ply
+`;
+
+const main = async () => {
+    console.log(`splat-transform v${version}`);
+
+    const startTime = hrtime();
+
+    // read args
+    const { files, options } = parseArguments();
+
+    // show version and exit
+    if (options.version) {
+        exit(0);
+    }
+
+    // invalid args or show help
+    if (files.length < 2 || options.help) {
+        console.error(usage);
+        exit(1);
+    }
+
+    const inputArgs = files.slice(0, -1);
+    const outputArg = files[files.length - 1];
+
+    const outputFilename = resolve(outputArg.filename);
+
+    if (options.overwrite) {
+        // ensure target directory exists when using -w
+        await mkdir(dirname(outputFilename), { recursive: true });
+    } else {
+        // check overwrite before doing any work
+        if (await fileExists(outputFilename)) {
+            console.error(`File '${outputFilename}' already exists. Use -w option to overwrite.`);
+            exit(1);
+        }
+    }
+
     try {
         // read, filter, process input files
-        const inputFile = await (async () => {
+        const inputFiles = (await Promise.all(inputArgs.map(async (inputArg) => {
+            // extract params
+            const params = inputArg.processActions.filter(a => a.kind === 'param').map((p) => {
+                return { name: p.name, value: p.value };
+            });
+
             // read input
-            const file = await readFile(resolve(filename), []);
+            const file = await readFile(resolve(inputArg.filename), params);
 
             // filter out non-gs data
             if (file.elements.length !== 1 || file.elements[0].name !== 'vertex') {
-                throw new Error(`Unsupported data in file '${filename}'`);
+                throw new Error(`Unsupported data in file '${inputArg.filename}'`);
             }
 
             const element = file.elements[0];
 
             const { dataTable } = element;
             if (dataTable.numRows === 0 || !isGSDataTable(dataTable)) {
-                throw new Error(`Unsupported data in file '${filename}'`);
+                throw new Error(`Unsupported data in file '${inputArg.filename}'`);
             }
 
-            element.dataTable = processDataTable(dataTable, []);
+            element.dataTable = processDataTable(dataTable, inputArg.processActions);
 
             return file;
-        })();
+        }))).filter(file => file !== null);
 
         // combine inputs into a single output dataTable
         const dataTable = processDataTable(
-            combine([inputFile].map(file => file.elements[0].dataTable)),
-            []
+            combine(inputFiles.map(file => file.elements[0].dataTable)),
+            outputArg.processActions
         );
 
         if (dataTable.numRows === 0) {
@@ -236,28 +555,21 @@ const convertGsplat = async(filename: string, outputFilename: string)=>{
 
         console.log(`Loaded ${dataTable.numRows} gaussians`);
 
-        const options: Options = {
-            overwrite: true,
-            help: false,
-            version: false,
-            cpu: true,
-            iterations: 10
-        };
-
         // write file
-        await writeFile(resolve(outputFilename), dataTable, options);
-
-        return {
-            isOk:true
-        };
+        await writeFile(outputFilename, dataTable, options);
     } catch (err) {
         // handle errors
         console.error(err);
-        return {
-            isOk: false,
-            error: err
-        };
+        exit(1);
     }
-}
 
-export { convertGsplat };
+    const endTime = hrtime(startTime);
+
+    console.log(`done in ${endTime[0] + endTime[1] / 1e9}s`);
+
+    // something in webgpu seems to keep the process alive after returning
+    // from main so force exit
+    exit(0);
+};
+
+export { main };

@@ -2,6 +2,7 @@ import { FileHandle, open } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 import { Column, DataTable } from '../data-table';
+import { createDevice, GpuDevice } from '../gpu/gpu-device';
 import { generateOrdering } from '../ordering';
 import { FileWriter } from '../serialize/writer';
 import { ZipWriter } from '../serialize/zip-writer';
@@ -52,7 +53,7 @@ const generateIndices = (dataTable: DataTable) => {
 // return
 //      - the resulting labels in a new datatable having same shape as the input
 //      - array of 256 centroids
-const cluster1d = async (dataTable: DataTable, iterations: number) => {
+const cluster1d = async (dataTable: DataTable, iterations: number, device?: GpuDevice) => {
     const { numColumns, numRows } = dataTable;
 
     // construct 1d points from the columns of data
@@ -63,7 +64,7 @@ const cluster1d = async (dataTable: DataTable, iterations: number) => {
 
     const src = new DataTable([new Column('data', data)]);
 
-    const { centroids, labels } = await kmeans(src, 256, iterations);
+    const { centroids, labels } = await kmeans(src, 256, iterations, device);
 
     // order centroids smallest to largest
     const centroidsData = centroids.getColumn(0).data;
@@ -104,6 +105,7 @@ const writeFile = async (filename: string, data: Uint8Array) => {
 };
 
 let webPCodec: WebPCodec;
+let gpuDevice: GpuDevice;
 
 const writeSog = async (fileHandle: FileHandle, dataTable: DataTable, outputFilename: string, shIterations = 10, shMethod: 'cpu' | 'gpu', indices = generateIndices(dataTable)) => {
     // initialize output stream
@@ -236,10 +238,15 @@ const writeSog = async (fileHandle: FileHandle, dataTable: DataTable, outputFile
     }
     await write('quats.webp', quats);
 
+    if (shMethod === 'gpu' && !gpuDevice) {
+        gpuDevice = await createDevice();
+    }
+
     // convert scale
     const scaleData = await cluster1d(
         new DataTable(['scale_0', 'scale_1', 'scale_2'].map(name => dataTable.getColumnByName(name))),
         shIterations,
+        gpuDevice
     );
     await writeTableData('scales.webp', scaleData.labels);
 
@@ -247,6 +254,7 @@ const writeSog = async (fileHandle: FileHandle, dataTable: DataTable, outputFile
     const colorData = await cluster1d(
         new DataTable(['f_dc_0', 'f_dc_1', 'f_dc_2'].map(name => dataTable.getColumnByName(name))),
         shIterations,
+        gpuDevice
     );
 
     // generate and store sigmoid(opacity) [0..1]
@@ -302,10 +310,10 @@ const writeSog = async (fileHandle: FileHandle, dataTable: DataTable, outputFile
         const paletteSize = Math.min(64, 2 ** Math.floor(Math.log2(indices.length / 1024))) * 1024;
 
         // calculate kmeans
-        const { centroids, labels } = await kmeans(shDataTable, paletteSize, shIterations);
+        const { centroids, labels } = await kmeans(shDataTable, paletteSize, shIterations, gpuDevice);
 
         // construct a codebook for all spherical harmonic coefficients
-        const codebook = await cluster1d(centroids, shIterations);
+        const codebook = await cluster1d(centroids, shIterations, gpuDevice);
 
         // write centroids
         const centroidsBuf = new Uint8Array(64 * shCoeffs * Math.ceil(centroids.numRows / 64) * channels);

@@ -1,5 +1,5 @@
 import createModule from '../../lib/webp.electron.mjs';
-import * as path from "path";
+import { resolve } from "path";
 
 class WebPCodec {
     Module: any;
@@ -7,12 +7,16 @@ class WebPCodec {
     static async create() {
         const instance = new WebPCodec();
         instance.Module = await createModule({
-            locateFile: (fileName: string) => {
-                if (fileName.endsWith('.wasm')) {
-                    let wasmPath = "file://" + path.resolve(__dirname, `../../resources/${fileName}`);
-                    return wasmPath;
+            locateFile: (path: string) => {
+                if (path.endsWith('.wasm')) {
+                    if((window as any).IS_ELECTRON !== true)  {
+                        return new URL(`../lib/${path}`, import.meta.url).toString();
+                    } else {
+                        let wasmPath = "file://" + resolve(__dirname, `../../../resources/${path}`);
+                        return wasmPath;
+                    }
                 }
-                return fileName;
+                return path;
             }
         });
         return instance;

@@ -19,6 +19,25 @@ const application = {
     cache: false
 };
 
+const umdapplication = {
+    input: 'src/index-electron.ts',
+    output: {
+        dir: 'dist',
+        format: 'umd',
+        sourcemap: true,
+        name: 'SPLAT',
+        entryFileNames: 'gsplat-electron.js'
+    },
+    external: ['webgpu'],
+    plugins: [
+        typescript({ tsconfig: './tsconfig.json' }),
+        resolve(),
+        json()
+    ],
+    cache: false
+};
+
 export default [
-    application
+    application,
+    umdapplication
 ];

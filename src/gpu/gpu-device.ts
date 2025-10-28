@@ -25,10 +25,10 @@ import {
     Texture,
     WebgpuGraphicsDevice
 } from 'playcanvas';
-import { create, globals } from 'webgpu';
+//import { create, globals } from 'webgpu';
 
 const initializeGlobals = () => {
-    Object.assign(globalThis, globals);
+    //Object.assign(globalThis, globals);
 
     // window stub
     (globalThis as any).window = {
@@ -61,7 +61,9 @@ const initializeGlobals = () => {
     };
 };
 
-initializeGlobals();
+if((window as any).IS_ELECTRON !== true) {
+    initializeGlobals();
+}
 
 class Application extends AppBase {
     constructor(canvas: HTMLCanvasElement, options: any = {}) {
@@ -110,7 +112,7 @@ const createDevice = async () => {
     globalThis.Worker = Worker;
 
     // @ts-ignore
-    window.navigator.gpu = create([]);
+    //window.navigator.gpu = create([]);
 
     const canvas = document.createElement('canvas');
 
@@ -126,7 +128,7 @@ const createDevice = async () => {
     await graphicsDevice.createDevice();
 
     // print gpu info
-    const info = (graphicsDevice as any).gpuAdapter.info;
+    const info = (graphicsDevice as any).gpuAdapter.info || {};
     console.log(`Created gpu device="${info.device || '-'}" arch="${info.architecture || '-'}" descr="${info.description || '-'}"`);
 
     // create the application
