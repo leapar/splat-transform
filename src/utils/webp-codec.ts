@@ -1,4 +1,4 @@
-import createModule from '../../lib/webp.mjs';
+import createModule from '../../lib/webp.electron.mjs';
 import * as path from "path";
 
 class WebPCodec {
