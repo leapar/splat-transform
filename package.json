@@ -27,10 +27,17 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./electron": {
+      "import": {
+        "types": "./dist/electron.d.ts",
+        "default": "./dist/electron.mjs"
+      }
+    },
     "./lib/*": "./lib/*"
   },
   "bin": {
-    "splat-transform": "bin/cli.mjs"
+    "splat-transform": "bin/cli.mjs",
+    "splat-transform-electron": "bin/electron.mjs"
   },
   "bugs": {
     "url": "https://github.com/playcanvas/splat-transform/issues"
@@ -74,7 +81,7 @@
     "playcanvas": "^2.0.0"
   },
   "scripts": {
-    "build": "rollup -c && node -e \"fs=require('fs');fs.copyFileSync('dist/lib/index.d.ts','dist/lib/index.d.cts')\"",
+    "build": "rollup -c && node -e \"fs=require('fs');fs.copyFileSync('dist/lib/index.d.ts','dist/lib/index.d.cts');fs.copyFileSync('dist/electron.d.ts','dist/electron.d.cts')\"",
     "docs": "typedoc",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
