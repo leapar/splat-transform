@@ -93,4 +93,29 @@ const cli = {
     cache: false
 };
 
-export default [esm, cjs, cli];
+// Electron renderer build - bundles the library + Electron adapter into a
+// single ESM file the renderer process can `import`. `webgpu` is externalised
+// so Electron provides it at runtime.
+const electron = {
+    input: 'src/electron/index.ts',
+    output: {
+        dir: 'dist',
+        format: 'esm',
+        sourcemap: true,
+        entryFileNames: 'electron.mjs'
+    },
+    external: ['playcanvas', 'webgpu'],
+    plugins: [
+        versionReplace(),
+        typescript({
+            tsconfig: './tsconfig.json',
+            declaration: true,
+            declarationDir: 'dist'
+        }),
+        resolve(),
+        json()
+    ],
+    cache: false
+};
+
+export default [esm, cjs, cli, electron];
