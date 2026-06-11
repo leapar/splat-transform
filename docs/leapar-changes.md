@@ -2,8 +2,8 @@
 
 > 原始代码仓库：https://github.com/leapar/splat-transform
 > 当前分支：electron
-> 修改时间：2025-10-26 至 2025-10-28
-> 共 10 个提交
+> 修改时间：2025-10-26 至 2026-06-11
+> 共 11 个提交（10 个代码提交 + 1 个文档提交）
 
 ---
 
@@ -104,7 +104,7 @@ git rebase upstream/main
 
 | 冲突文件 | 处理方式 |
 |---------|---------|
-| `src/index.ts` | 保留新功能，**但保留** `convertGsplat` 函数（改名自 `deal`）和 `{ isOk, error }` 返回值；保留 `window.api.message.log` 调用 |
+| `src/index.ts` | 接受 upstream 新功能（如新格式、新命令行选项）；**注意** `convertGsplat` 不在 `src/index.ts` 中（已在 4a4d3ab 迁移到 `src/index-electron.ts`）；保留 `window.api.message.log` 调用 |
 | `src/index-electron.ts` | 该文件是 leapar 新增的，merge 时 upstream 没有，应保留 |
 | `src/utils/k-means.ts` | 保留 `device?` 参数，保留 GPU 聚类分支 |
 | `src/writers/write-sog.ts` | 保留 `shMethod: 'cpu' \| 'gpu'` 参数 |
@@ -123,7 +123,7 @@ git rebase upstream/main
 
 - [ ] **Electron 入口函数存在**：`src/index-electron.ts` 中导出 `convertGsplat`
 - [ ] **返回值为对象**：`{ isOk: boolean, error?: any }` 而非 `boolean`
-- [ ] **日志走 IPC**：搜索 `(window as any).api.message.log` 至少出现 8 处（index.ts、index-electron.ts、gpu-device.ts、k-means.ts、write-lod.ts、write-sog.ts）
+- [ ] **日志走 IPC**：搜索 `(window as any).api.message.log` 至少出现 12 处（index.ts: 4处、index-electron.ts: 3处、gpu-device.ts: 1处、k-means.ts: 2处、write-lod.ts: 1处、write-sog.ts: 1处）
 - [ ] **WASM 路径正确**：webp-codec.ts 中有 `process.env.NODE_ENV` 分支判断
 - [ ] **webp.electron.mjs 存在**：`lib/webp.electron.mjs` 文件未被删除
 - [ ] **GPU 支持完整**：`kmeans` 有 `device?` 参数，`writeSog` 有 `shMethod: 'cpu' | 'gpu'` 参数
@@ -208,7 +208,7 @@ git merge --abort
 
 > "请按照 `docs/leapar-changes.md` 的'升级原始代码时的关键修改点'和'冲突处理原则'，把 upstream main 的新功能 merge 到当前 electron 分支。冲突时优先保留 leapar 在该文档中列出的修改，特别注意：
 > 1. 保留 `src/index-electron.ts`（新增文件）
-> 2. 保留 `convertGsplat` 函数和 `{ isOk, error }` 返回值
+> 2. 保留 `src/index-electron.ts` 中的 `convertGsplat` 函数和 `{ isOk, error }` 返回值
 > 3. 保留 `window.api.message.log` 替换
 > 4. 保留 `lib/webp.electron.mjs`（新增文件）
 > 5. 保留 `rollup.config.mjs` 中的 `umdapplication` 配置
@@ -221,16 +221,17 @@ git merge --abort
 
 | Commit | 消息 | 日期 | 备注 |
 |--------|------|------|------|
-| `2ff2be8` | 备份 | 2025-10-26 | |
-| `9f8ceea` | for electron cpu | 2025-10-26 | **大删提交**：移除 CLI main 函数 |
-| `0ffb2bb` | for electron | 2025-10-26 | |
-| `0fda219` | for electron | 2025-10-27 | |
-| `04caee5` | 备份 | 2025-10-28 | |
-| `4a4d3ab` | electron gpu | 2025-10-28 | **最大提交**：+665 行，添加 GPU 支持 |
-| `7d06a41` | electron gpu preload | 2025-10-28 | |
-| `735a16e` | log send out | 2025-10-28 | |
+| `e6f5c8b` | 更新 | 2026-06-11 | 把本文档提交进仓库 |
 | `f96bbc1` | wasm | 2025-10-28 | |
+| `735a16e` | log send out | 2025-10-28 | |
+| `7d06a41` | electron gpu preload | 2025-10-28 | |
+| `4a4d3ab` | electron gpu | 2025-10-28 | **最大提交**：+665 行，添加 GPU 支持 |
+| `04caee5` | 备份 | 2025-10-28 | |
+| `0fda219` | for electron | 2025-10-27 | |
+| `0ffb2bb` | for electron | 2025-10-26 | |
+| `9f8ceea` | for electron cpu | 2025-10-26 | **大删提交**：移除 CLI main 函数 |
 | `e9baaf6` | Merge main | 2025-10-26 | **合并上游 main 分支** |
+| `2ff2be8` | 备份 | 2025-10-26 | |
 
 ---
 
@@ -240,20 +241,20 @@ git merge --abort
 
 **改动文件：** (共 12 文件，+546/-65)
 
-| 文件 | 变更 |
+| 文件 | 变更详情 |
 |------|------|
-| `.github/workflows/ci.yml` | CI 配置修改 |
-| `.github/workflows/publish.yml` | 发布配置修改 |
-| `generators/gen-grid.mjs` | 网格生成器修改 |
+| `.github/workflows/ci.yml` | `actions/setup-node` 由 v5 升级到 v6 |
+| `.github/workflows/publish.yml` | `actions/setup-node` 由 v5 升级到 v6 |
+| `generators/gen-grid.mjs` | 构造函数参数从 `(width, height, scale, color, alpha)` 改为 `(width, height, spacing, s, r, g, b, a)`；支持 RGB 三通道独立色；新增 `packClr`/`packOpacity` 工具函数；默认参数 scale 改为 0.1 |
 | `package-lock.json` | lock 文件更新 |
 | `package.json` | 版本/描述更新 |
-| `src/gpu/gpu-clustering.ts` | GPU 聚类修改 |
-| `src/gpu/gpu-device.ts` | GPU 设备修改 |
-| `src/index.ts` | +42 行修改 |
-| `src/process.ts` | 进程处理修改 |
-| `src/utils/b-tree.ts` | **新增** 156 行 B-tree 实现 |
-| `src/utils/kd-tree.ts` | kd-tree 修改 |
-| `src/writers/write-lod.ts` | **新增** 274 行 LOD 写入支持 |
+| `src/gpu/gpu-clustering.ts` | `playcanvas/debug` 改为 `playcanvas` |
+| `src/gpu/gpu-device.ts` | `playcanvas/debug` 改为 `playcanvas`；新增 GPU info 日志：`console.log(\`Created gpu device="${info.device}"...\`)` |
+| `src/index.ts` | +42 行修改：新增 `writeLod` import 和 `'lod'` case；新增 `lod` 命令行选项（短选项 `-l`）；新增 `mkdir` 导入（`-w` 时创建目录）；调整 `outputFilename` 处理 |
+| `src/process.ts` | 新增 `Lod` 类型和 `'lod'` case，向 DataTable 添加 `lod` 列 |
+| `src/utils/b-tree.ts` | **新增** 156 行 B-tree 实现（用于 LOD 切分） |
+| `src/utils/kd-tree.ts` | 重构：把 `build` 方法从 `class` 私有方法改为构造函数内的 `build` 闭包；KdTreeNode 新增 `count` 字段；构建过程优化 |
+| `src/writers/write-lod.ts` | **新增** 274 行 LOD 格式写入实现（基于 BTree 切分多个 SOG 文件） |
 
 ---
 
@@ -311,8 +312,8 @@ git merge --abort
 ### `src/utils/webp-codec.ts`
 - 新增 import：`import * as path from "path"`
 - `locateFile` 参数名从 `path` 改为 `fileName`（避免与 import 的 path 模块冲突）
-- WASM 路径逻辑：从 `new URL(\`../lib/${path}\`, import.meta.url).toString()` 改为 `"file://" + path.resolve(__dirname, \`../../resources/${fileName}\`)`
-- 返回值：从 `new URL(wasmPath, import.meta.url).toString()` 改为直接返回 `wasmPath`
+- WASM 路径构造：从 `new URL(\`../lib/${path}\`, import.meta.url).toString()` 改为先 `"file://" + path.resolve(__dirname, \`../../resources/${fileName}\`)`，再 `new URL(wasmPath, import.meta.url).toString()`
+- **此提交仍保留 `new URL` 包装**，URL 构造的真正移除在 0fda219
 
 ---
 
@@ -321,8 +322,9 @@ git merge --abort
 **改动文件：** `lib/webp.mjs`、`src/index.ts`、`src/utils/webp-codec.ts`
 
 ### `lib/webp.mjs`
-- 完全重写（从压缩的一行格式化为多行可读格式，472 行）
+- 完全重写（从压缩的一行格式化为多行可读格式，**468 行**）
 - 修复 `ENVIRONMENT_IS_NODE` 等逻辑
+- 改用 `require("fs")`/`require("path")` 而非 `import.meta.url`（兼容 Node CommonJS 环境）
 
 ### `src/index.ts`
 - `convertGsplat` 返回值从 `boolean` 改为对象：
@@ -334,7 +336,7 @@ git merge --abort
   ```
 
 ### `src/utils/webp-codec.ts`
-- `locateFile` 返回值从 `new URL(wasmPath, import.meta.url).toString()` 改为直接返回 `wasmPath`
+- `locateFile` 返回值从 `new URL(wasmPath, import.meta.url).toString()` 改为直接返回 `wasmPath`（去掉 URL 构造）
 
 ---
 
@@ -344,10 +346,10 @@ git merge --abort
 
 ### `lib/webp.electron.mjs`（新增，468 行）
 - Electron 专用的 webp wasm 模块，兼容 Node 环境
-- 内容与格式化后的 `webp.mjs` 相同
+- 内容是格式化后的版本（与 0fda219 重写后的 `webp.mjs` 实质相同）
 
 ### `lib/webp.mjs`
-- 被替换为与 `webp.electron.mjs` 相同的内容（472 行）
+- **此提交中实际未被修改**（仍为 0fda219 格式化后的 14 行版本）
 
 ### `src/utils/webp-codec.ts`
 - import 路径从 `'../../lib/webp.mjs'` 改为 `'../../lib/webp.electron.mjs'`
@@ -384,20 +386,20 @@ git merge --abort
 - `initializeGlobals` 内部：`Object.assign(globalThis, globals)` 被注释掉
 - `initializeGlobals()` 调用被条件包裹：`if((window as any).IS_ELECTRON !== true) { initializeGlobals(); }`
 - `window.navigator.gpu = create([])` 被注释掉
-- GPU info 日志改为：`console.log` 或 `(window as any).api?.message?.log`
+- **GPU info 日志**仍是 `console.log(...)`（735a16e 才改为 `window.api.message.log`）
 
 ### `src/index-electron.ts`（新增，263 行）
 - Electron 主进程入口文件
 - 包含 `readFile`、`writeFile`、`convertGsplat` 等函数的 Electron 版本
 - 通过 `window.api` 与渲染进程通信
-- **注意**：此文件的 `convertGsplat` 默认 `cpu: false`（与 index.ts 不同）
+- 包含 3 处 `console.log`（735a16e 替换为 `api.message.log`）
+- **`convertGsplat` 默认 `cpu: false`**，导出 `convertGsplat`
 
 ### `src/index.ts`
-- **大幅扩展（+370 行）**
-- `main` 函数**被恢复**（但保留了 `convertGsplat` 作为 Electron 入口）
-- 添加更多格式/功能支持
-- 在 Electron 环境下通过 `window.api` 与主进程通信
-- 所有 `console.log` 替换为 `(window as any).api.message.log(...)`
+- **完全恢复 main 函数版（575 行）**
+- `main` 函数被恢复；**`convertGsplat` 被移除**（迁移到 `src/index-electron.ts`）
+- 添加更多格式/功能支持（如 writeCsv、writeHtml、writeLod）
+- 包含 5 处 `console.log`（735a16e 替换为 `api.message.log`）
 - **当前导出**：`export { main }`（恢复 CLI 支持）
 
 ### `src/utils/k-means.ts`
@@ -407,8 +409,9 @@ git merge --abort
 
 ### `src/utils/webp-codec.ts`
 - 恢复 Electron 环境的 WASM 路径处理逻辑，带 `IS_ELECTRON` 条件判断
+- Electron 环境用 `../../../resources`（3 层），非 Electron 用 `../lib/`（原始 URL 构造）
 
-### `src/writers/write-sog.ts`
+### `src/writers/write-sog.ts`（372 行）
 - 恢复 GPU 支持
 - `writeSog` 恢复接受 `shMethod: 'cpu' | 'gpu'` 参数
 - 恢复 GPU 设备创建和使用
@@ -441,23 +444,25 @@ git merge --abort
 
 **改动文件：** `src/gpu/gpu-device.ts`、`src/index-electron.ts`、`src/index.ts`、`src/utils/k-means.ts`、`src/writers/write-lod.ts`、`src/writers/write-sog.ts`
 
+**总替换数：12 处 `api.message.log`**
+
 ### `src/gpu/gpu-device.ts`
-- GPU 创建日志从 `console.log` 改为 `(window as any).api.message.log`
+- GPU 创建日志从 `console.log` 改为 `(window as any).api.message.log`（1 处）
 
 ### `src/index-electron.ts`
-- 文件读写日志、加载高斯数量、完成时间 → `window.api.message.log`
+- 3 处：`reading '${filename}'...`、`writing '${filename}'...`、`Loaded ${numRows} gaussians`（**注意：没有"完成时间"日志，因为 `convertGsplat` 函数本身不在 main 中运行 CLI 流程**）
 
 ### `src/index.ts`
-- 同上（Browser 端也改用 `window.api.message.log`）
+- 4 处：`reading`、`writing`、`Loaded ${numRows} gaussians`、`done in ${time}s`（还有 1 处 `splat-transform v${version}` 未替换，因为是程序启动横幅）
 
 ### `src/utils/k-means.ts`
-- k-means 进度和完成日志 → `window.api.message.log`
+- 2 处：`Running k-means clustering...` 和 ` done 🎉`
 
 ### `src/writers/write-lod.ts`
-- LOD 写入日志从 `console.log` 改为 `(window as any).api.message.log`
+- 1 处：`writing ${pathname}...`
 
 ### `src/writers/write-sog.ts`
-- SOG 写入日志从 `console.log` 改为 `(window as any).api.message.log`
+- 1 处：`writing '${pathname}'...`
 
 ---
 
@@ -486,14 +491,16 @@ git merge --abort
 
 ### 2. 入口函数改造
 - `src/index.ts`：
-  - `deal` 函数重命名为 `convertGsplat`
-  - 返回值从 `boolean` 改为 `{ isOk: boolean, error?: any }`
-  - `main` 函数在 4a4d3ab 中被恢复，但保留了 `api.message.log` 调用
+  - 在 2ff2be8 中**新增** `deal` 函数（保留 `main`）
+  - 在 0ffb2bb 中 `deal` 重命名为 `convertGsplat`
+  - 在 0fda219 中返回值从 `boolean` 改为 `{ isOk: boolean, error?: any }`
+  - 在 4a4d3ab 中 `main` 函数被完全恢复，`convertGsplat` 被**迁移到** `src/index-electron.ts`
+  - 在 735a16e 中 4 处 `console.log` 改为 `api.message.log`
 
 ### 3. Electron 主进程入口
 - **新建** `src/index-electron.ts`（263 行）作为 Electron 主进程调用入口
-- `cpu` 默认值为 `false`（与 index.ts 的 `deal` 不同）
-- 导出 `convertGsplat` 函数
+- `cpu` 默认值为 `false`（Electron 端默认 GPU）
+- 导出 `convertGsplat` 函数（4a4d3ab 从 `src/index.ts` 迁移过来）
 
 ### 4. GPU 支持
 - `src/gpu/gpu-device.ts`：
@@ -526,12 +533,14 @@ git merge --abort
 - `index-electron.ts` 中 `cpu: false`
 
 ### 9. 新增文件
-| 文件 | 说明 |
-|------|------|
-| `src/index-electron.ts` | Electron 主进程入口 |
-| `lib/webp.electron.mjs` | Electron 专用 webp wasm 模块 |
-| `src/utils/b-tree.ts` | B-tree 实现（来自 upstream） |
-| `src/writers/write-lod.ts` | LOD 格式写入（来自 upstream） |
+| 文件 | 引入提交 | 说明 |
+|------|----------|------|
+| `src/index-electron.ts` | `4a4d3ab` | Electron 主进程入口（leapar 编写） |
+| `lib/webp.electron.mjs` | `04caee5` | Electron 专用 webp wasm 模块（leapar 编写） |
+| `src/utils/b-tree.ts` | `e9baaf6` | B-tree 实现（来自 upstream merge） |
+| `src/writers/write-lod.ts` | `e9baaf6` | LOD 格式写入（来自 upstream merge） |
+| `pnpm-lock.yaml` | `2ff2be8` | 切换到 pnpm 包管理器 |
+| `docs/leapar-changes.md` | `e6f5c8b` | 本文档 |
 
 ---
 
@@ -539,7 +548,7 @@ git merge --abort
 
 | 提交 | 新增文件 | 修改文件 |
 |------|----------|----------|
-| `e9baaf6` | `src/utils/b-tree.ts`, `src/writers/write-lod.ts` | `.github/workflows/*.yml`, `generators/gen-grid.mjs`, `package*.json`, `src/gpu/*.ts`, `src/index.ts`, `src/process.ts`, `src/utils/kd-tree.ts` |
+| `e9baaf6` | `src/utils/b-tree.ts`, `src/writers/write-lod.ts` | `.github/workflows/ci.yml`, `.github/workflows/publish.yml`, `generators/gen-grid.mjs`, `package-lock.json`, `package.json`, `src/gpu/gpu-clustering.ts`, `src/gpu/gpu-device.ts`, `src/index.ts`, `src/process.ts`, `src/utils/kd-tree.ts` |
 | `2ff2be8` | `pnpm-lock.yaml` | `package.json`, `src/index.ts` |
 | `9f8ceea` | - | `src/index.ts`, `src/utils/k-means.ts`, `src/writers/write-sog.ts` |
 | `0ffb2bb` | - | `src/index.ts`, `src/utils/webp-codec.ts` |
@@ -549,6 +558,7 @@ git merge --abort
 | `7d06a41` | - | `rollup.config.mjs`, `src/gpu/gpu-device.ts`, `src/utils/webp-codec.ts` |
 | `735a16e` | - | `src/gpu/gpu-device.ts`, `src/index-electron.ts`, `src/index.ts`, `src/utils/k-means.ts`, `src/writers/write-lod.ts`, `src/writers/write-sog.ts` |
 | `f96bbc1` | - | `src/utils/webp-codec.ts` |
+| `e6f5c8b` | - | `docs/leapar-changes.md` |
 
 ---
 
@@ -556,13 +566,23 @@ git merge --abort
 
 | 提交 | 状态 |
 |------|------|
-| 原始状态 | 导出 `{ main, deal }`，有 CLI 参数解析 |
-| `2ff2be8` | 原始状态（备份前） |
-| `9f8ceea` | 删除 `main`、`parseArguments` 等 CLI 代码，**保留** `deal` 函数，导出改为 `export { deal }` |
+| 原始状态 | 导出 `{ main }`，有 CLI 参数解析 |
+| `2ff2be8` | **新增** `deal` 函数（55 行），导出改为 `{ main, deal }` |
+| `9f8ceea` | 删除 `main`、`parseArguments` 等 CLI 代码（-378 行），**保留** `deal` 函数，导出改为 `export { deal }`；`deal` 内 `cpu` 改为 `true` |
 | `0ffb2bb` | `deal` 重命名为 `convertGsplat`，导出改为 `export { convertGsplat }` |
 | `0fda219` | `convertGsplat` 返回值改为 `{ isOk, error? }` 对象 |
-| `4a4d3ab` | **恢复** `main` 函数及 CLI 完整代码（+370 行），同时保留 `convertGsplat`，导出改为 `export { main }` |
-| `735a16e` | 所有 `console.log` 改为 `window.api.message.log` |
+| `4a4d3ab` | **完全恢复** `main` 函数（575 行），`convertGsplat` **迁移到** `src/index-electron.ts`，导出改为 `export { main }`；日志仍是 `console.log` |
+| `735a16e` | 4 处 `console.log` 改为 `window.api.message.log`（`splat-transform v${version}` 启动横幅未替换） |
+
+---
+
+## `src/index-electron.ts` 的修改轨迹
+
+| 提交 | 状态 |
+|------|------|
+| 原始状态 | 不存在 |
+| `4a4d3ab` | **新增**（263 行），从 `src/index.ts` 迁移出 `convertGsplat` 等函数，3 处 `console.log` |
+| `735a16e` | 3 处 `console.log` 改为 `window.api.message.log` |
 
 ---
 
@@ -570,13 +590,13 @@ git merge --abort
 
 | 提交 | 变更 |
 |------|------|
-| 原始状态 | `import 'webgpu'`，用 URL 构造 wasm 路径 |
-| `0ffb2bb` | 引入 `path` 模块，`locateFile` 参数改名为 `fileName`，去掉 URL 构造，直接返回 wasm 路径 |
-| `0fda219` | 直接返回 wasmPath（无 URL 构造） |
+| 原始状态 | 用 `new URL(\`../lib/${path}\`, import.meta.url).toString()` 构造 wasm 路径 |
+| `0ffb2bb` | 引入 `path` 模块，`locateFile` 参数改名为 `fileName`；wasmPath 用 `file:// + path.resolve(__dirname, '../../resources/...')`，**但仍包一层** `new URL(wasmPath, import.meta.url).toString()` |
+| `0fda219` | **去掉 URL 构造**，直接返回 `wasmPath` |
 | `04caee5` | import 改为 `webp.electron.mjs` |
-| `4a4d3ab` | 恢复 `IS_ELECTRON` 条件判断，electron 环境用 `../../../resources` |
-| `7d06a41` | 移除 `IS_ELECTRON` 判断，统一用 `../../resources` |
-| `f96bbc1` | 添加 `NODE_ENV` 判断：开发用 `../../resources`，生产用 `process.resourcesPath` |
+| `4a4d3ab` | 恢复 `IS_ELECTRON` 条件判断：非 Electron 用 `new URL('../lib/...')`，Electron 用 `../../../resources` |
+| `7d06a41` | 移除 `IS_ELECTRON` 判断，统一用 `resolve(__dirname, '../../resources/...')` |
+| `f96bbc1` | 添加 `NODE_ENV` 判断：开发用 `../../resources`，生产用 `process.resourcesPath + app.asar.unpacked/resources` |
 
 ---
 
@@ -584,7 +604,7 @@ git merge --abort
 
 | 提交 | 变更 |
 |------|------|
-| 原始状态 | 调用 `initializeGlobals()`，设置 `window.navigator.gpu = create([])` |
-| `4a4d3ab` | 注释 `import { create, globals }`，`initializeGlobals()` 改为 `if((window as any).IS_ELECTRON !== true)` 条件调用，注释 `navigator.gpu = create([])` |
+| 原始状态 | 调用 `initializeGlobals()`，设置 `window.navigator.gpu = create([])`，GPU info 用 `console.log` |
+| `4a4d3ab` | 注释 `import { create, globals }`，`initializeGlobals()` 改为 `if((window as any).IS_ELECTRON !== true)` 条件调用，注释 `navigator.gpu = create([])`；GPU info 仍用 `console.log` |
 | `7d06a41` | 移除条件判断，直接注释 `//initializeGlobals()` |
 | `735a16e` | GPU info 日志改为 `window.api.message.log` |
