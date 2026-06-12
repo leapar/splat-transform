@@ -29,7 +29,7 @@
     },
     "./electron": {
       "import": {
-        "types": "./dist/electron.d.ts",
+        "types": "./dist/electron/index.d.ts",
         "default": "./dist/electron.mjs"
       }
     },
@@ -81,7 +81,7 @@
     "playcanvas": "^2.0.0"
   },
   "scripts": {
-    "build": "rollup -c && node -e \"fs=require('fs');fs.copyFileSync('dist/lib/index.d.ts','dist/lib/index.d.cts');fs.copyFileSync('dist/electron.d.ts','dist/electron.d.cts')\"",
+    "build": "rollup -c && node -e \"fs=require('fs');fs.copyFileSync('dist/lib/index.d.ts','dist/lib/index.d.cts');fs.copyFileSync('dist/electron/index.d.ts','dist/electron/index.d.cts')\"",
     "docs": "typedoc",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",

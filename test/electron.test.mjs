@@ -44,13 +44,15 @@ test('electron module exports', async () => {
     assert.equal(typeof m.processDataTable, 'function', 'processDataTable must be re-exported');
 });
 
-test('isElectron detects Node', () => {
+test('isElectron detects Node', async () => {
     // We're running under Node, not Electron.
     assert.equal(typeof process, 'object');
     const m = await import(ELECTRON_DIST.href);
     // In a plain Node test process this should be false.
     if (!process.versions.electron) {
         assert.equal(m.isElectron(), false, 'isElectron() should be false in plain Node');
+    } else {
+        assert.equal(m.isElectron(), true, 'isElectron() should be true when process.versions.electron is set');
     }
 });
 
